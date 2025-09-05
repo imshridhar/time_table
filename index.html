@@ -81,6 +81,14 @@
             </div>
         </div>
 
+        <!-- Time Summary -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Daily Time Summary</h3>
+            <div id="timeSummary" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Time summary will be populated here -->
+            </div>
+        </div>
+
         <!-- Activity Legend -->
         <div class="bg-white rounded-xl shadow-lg p-6">
             <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Activity Types</h3>
@@ -208,6 +216,73 @@
             return hours * 60 + minutes;
         }
 
+        function calculateTimeSummary() {
+            const summary = {};
+            
+            schedule.forEach(activity => {
+                const startMinutes = timeToMinutes(activity.start);
+                let endMinutes = timeToMinutes(activity.end);
+                
+                // Handle overnight activities
+                if (endMinutes <= startMinutes) {
+                    endMinutes += 24 * 60;
+                }
+                
+                const duration = endMinutes - startMinutes;
+                
+                if (!summary[activity.type]) {
+                    summary[activity.type] = {
+                        name: activity.type.split('-').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' '),
+                        totalMinutes: 0,
+                        count: 0
+                    };
+                }
+                
+                summary[activity.type].totalMinutes += duration;
+                summary[activity.type].count += 1;
+            });
+            
+            return summary;
+        }
+
+        function formatDuration(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            
+            if (hours === 0) return `${mins}m`;
+            if (mins === 0) return `${hours}h`;
+            return `${hours}h ${mins}m`;
+        }
+
+        function renderTimeSummary() {
+            const summary = calculateTimeSummary();
+            const container = document.getElementById('timeSummary');
+            container.innerHTML = '';
+            
+            // Sort by total time (descending)
+            const sortedSummary = Object.entries(summary).sort((a, b) => 
+                b[1].totalMinutes - a[1].totalMinutes
+            );
+            
+            sortedSummary.forEach(([type, data]) => {
+                const percentage = ((data.totalMinutes / (24 * 60)) * 100).toFixed(1);
+                
+                const div = document.createElement('div');
+                div.className = `activity-${type} text-white p-4 rounded-lg shadow-md`;
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-semibold text-lg">${data.name}</h4>
+                        <span class="text-sm opacity-90">${data.count}x</span>
+                    </div>
+                    <div class="text-2xl font-bold mb-1">${formatDuration(data.totalMinutes)}</div>
+                    <div class="text-sm opacity-90">${percentage}% of day</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
         function createActivityElement(activity) {
             const div = document.createElement('div');
             div.className = `time-slot activity-${activity.type} text-white p-4 rounded-lg shadow-md`;
@@ -254,6 +329,9 @@
                     eveningContainer.appendChild(element);
                 }
             });
+            
+            // Update time summary whenever schedule is rendered
+            renderTimeSummary();
         }
 
         function handleDragStart(e) {
@@ -450,5 +528,5 @@
         // Initial render
         renderSchedule();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5bcbf423bc464',t:'MTc1NzA3NTQyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5c52b6462c464',t:'MTc1NzA3NTc2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
