@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Daily Schedule Chart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .time-slot {
+            transition: all 0.3s ease;
+            cursor: grab;
+        }
+        .time-slot:active {
+            cursor: grabbing;
+        }
+        .time-slot:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .drag-over {
+            border: 2px dashed #3b82f6;
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        .activity-self-study { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .activity-exercise { background: linear-gradient(135deg, #10b981, #047857); }
+        .activity-fresh { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+        .activity-breakfast { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .activity-college { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .activity-lunch { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .activity-dinner { background: linear-gradient(135deg, #f97316, #ea580c); }
+        .activity-walking { background: linear-gradient(135deg, #84cc16, #65a30d); }
+        .activity-sleep { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+        
+        .modal {
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Daily Schedule Chart</h1>
+            <p class="text-gray-600">Drag and drop to customize your perfect day</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-wrap gap-4 mb-6 justify-center">
+            <button id="sundayMode" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                Sunday Mode (College → Self Study)
+            </button>
+            <button id="addActivity" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                Add Activity
+            </button>
+            <button id="saveSchedule" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                Save Schedule
+            </button>
+            <button id="resetSchedule" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                Reset to Default
+            </button>
+        </div>
+
+        <!-- Schedule Chart -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Morning Schedule -->
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Morning Schedule</h3>
+                    <div id="morningSchedule" class="space-y-2">
+                        <!-- Morning activities will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Evening Schedule -->
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Evening Schedule</h3>
+                    <div id="eveningSchedule" class="space-y-2">
+                        <!-- Evening activities will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Legend -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Activity Types</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-self-study"></div>
+                    <span class="text-sm text-gray-700">Self Study</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-exercise"></div>
+                    <span class="text-sm text-gray-700">Exercise</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-fresh"></div>
+                    <span class="text-sm text-gray-700">Fresh Up</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-breakfast"></div>
+                    <span class="text-sm text-gray-700">Meals</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-college"></div>
+                    <span class="text-sm text-gray-700">College</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-walking"></div>
+                    <span class="text-sm text-gray-700">Walking</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-4 rounded activity-sleep"></div>
+                    <span class="text-sm text-gray-700">Sleep</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 modal hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-semibold mb-4">Edit Activity</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Activity Name</label>
+                    <input type="text" id="editActivityName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
+                    <input type="time" id="editStartTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <input type="time" id="editEndTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
+                    <select id="editActivityType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="self-study">Self Study</option>
+                        <option value="exercise">Exercise</option>
+                        <option value="fresh">Fresh Up</option>
+                        <option value="breakfast">Breakfast</option>
+                        <option value="lunch">Lunch</option>
+                        <option value="dinner">Dinner</option>
+                        <option value="college">College</option>
+                        <option value="walking">Walking</option>
+                        <option value="sleep">Sleep</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex space-x-3 mt-6">
+                <button id="saveEdit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Save</button>
+                <button id="deleteActivity" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Delete</button>
+                <button id="cancelEdit" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let schedule = [
+            { id: 2, name: 'Self Study', start: '04:00', end: '06:00', type: 'self-study' },
+            { id: 3, name: 'Exercise', start: '06:00', end: '06:30', type: 'exercise' },
+            { id: 4, name: 'Fresh Up', start: '06:30', end: '07:00', type: 'fresh' },
+            { id: 5, name: 'Self Study', start: '07:00', end: '08:00', type: 'self-study' },
+            { id: 6, name: 'Breakfast', start: '08:00', end: '08:15', type: 'breakfast' },
+            { id: 7, name: 'Self Study', start: '08:15', end: '09:00', type: 'self-study' },
+            { id: 8, name: 'College', start: '09:00', end: '13:15', type: 'college' },
+            { id: 9, name: 'Lunch', start: '13:15', end: '13:40', type: 'lunch' },
+            { id: 10, name: 'Self Study', start: '13:40', end: '19:40', type: 'self-study' },
+            { id: 11, name: 'Dinner', start: '19:40', end: '20:00', type: 'dinner' },
+            { id: 12, name: 'Walking', start: '20:00', end: '20:20', type: 'walking' },
+            { id: 13, name: 'Self Study', start: '20:20', end: '21:00', type: 'self-study' },
+            { id: 1, name: 'Sleep', start: '21:00', end: '04:00', type: 'sleep' }
+        ];
+
+        let isSundayMode = false;
+        let currentEditingId = null;
+
+        function formatTime(time) {
+            const [hours, minutes] = time.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+            return `${displayHour}:${minutes} ${ampm}`;
+        }
+
+        function calculateDuration(start, end) {
+            const startMinutes = timeToMinutes(start);
+            let endMinutes = timeToMinutes(end);
+            
+            // Handle overnight activities
+            if (endMinutes <= startMinutes) {
+                endMinutes += 24 * 60;
+            }
+            
+            const duration = endMinutes - startMinutes;
+            const hours = Math.floor(duration / 60);
+            const minutes = duration % 60;
+            
+            if (hours === 0) return `${minutes}m`;
+            if (minutes === 0) return `${hours}h`;
+            return `${hours}h ${minutes}m`;
+        }
+
+        function timeToMinutes(time) {
+            const [hours, minutes] = time.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function createActivityElement(activity) {
+            const div = document.createElement('div');
+            div.className = `time-slot activity-${activity.type} text-white p-4 rounded-lg shadow-md`;
+            div.draggable = true;
+            div.dataset.id = activity.id;
+            
+            const duration = calculateDuration(activity.start, activity.end);
+            
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-semibold text-lg">${activity.name}</h4>
+                    <span class="text-sm opacity-90">${duration}</span>
+                </div>
+                <div class="text-sm opacity-90">
+                    ${formatTime(activity.start)} - ${formatTime(activity.end)}
+                </div>
+            `;
+
+            // Add event listeners
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragover', handleDragOver);
+            div.addEventListener('drop', handleDrop);
+            div.addEventListener('dragend', handleDragEnd);
+            div.addEventListener('click', () => openEditModal(activity.id));
+
+            return div;
+        }
+
+        function renderSchedule() {
+            const morningContainer = document.getElementById('morningSchedule');
+            const eveningContainer = document.getElementById('eveningSchedule');
+            
+            morningContainer.innerHTML = '';
+            eveningContainer.innerHTML = '';
+
+            schedule.forEach(activity => {
+                const element = createActivityElement(activity);
+                const startHour = parseInt(activity.start.split(':')[0]);
+                
+                // Split between morning (4 AM - 2 PM) and evening (2 PM - 4 AM next day)
+                if (startHour >= 4 && startHour < 14) {
+                    morningContainer.appendChild(element);
+                } else {
+                    eveningContainer.appendChild(element);
+                }
+            });
+        }
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.id);
+            e.target.style.opacity = '0.5';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const draggedId = e.dataTransfer.getData('text/plain');
+            const targetId = e.currentTarget.dataset.id;
+            
+            if (draggedId !== targetId) {
+                swapActivities(draggedId, targetId);
+            }
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+            document.querySelectorAll('.drag-over').forEach(el => {
+                el.classList.remove('drag-over');
+            });
+        }
+
+        function swapActivities(id1, id2) {
+            const index1 = schedule.findIndex(a => a.id == id1);
+            const index2 = schedule.findIndex(a => a.id == id2);
+            
+            if (index1 !== -1 && index2 !== -1) {
+                // Swap times but keep other properties
+                const temp = {
+                    start: schedule[index1].start,
+                    end: schedule[index1].end
+                };
+                
+                schedule[index1].start = schedule[index2].start;
+                schedule[index1].end = schedule[index2].end;
+                schedule[index2].start = temp.start;
+                schedule[index2].end = temp.end;
+                
+                renderSchedule();
+            }
+        }
+
+        function toggleSundayMode() {
+            isSundayMode = !isSundayMode;
+            const button = document.getElementById('sundayMode');
+            
+            if (isSundayMode) {
+                // Convert college time to self study
+                schedule.forEach(activity => {
+                    if (activity.type === 'college') {
+                        activity.name = 'Self Study';
+                        activity.type = 'self-study';
+                    }
+                });
+                button.textContent = 'Weekday Mode (Self Study → College)';
+                button.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+                button.classList.add('bg-orange-600', 'hover:bg-orange-700');
+            } else {
+                // Convert back to college
+                schedule.forEach(activity => {
+                    if (activity.start === '09:00' && activity.end === '13:15' && activity.type === 'self-study') {
+                        activity.name = 'College';
+                        activity.type = 'college';
+                    }
+                });
+                button.textContent = 'Sunday Mode (College → Self Study)';
+                button.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+                button.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            }
+            
+            renderSchedule();
+        }
+
+        function openEditModal(id) {
+            const activity = schedule.find(a => a.id == id);
+            if (!activity) return;
+
+            currentEditingId = id;
+            document.getElementById('editActivityName').value = activity.name;
+            document.getElementById('editStartTime').value = activity.start;
+            document.getElementById('editEndTime').value = activity.end;
+            document.getElementById('editActivityType').value = activity.type;
+            document.getElementById('editModal').classList.remove('hidden');
+            document.getElementById('editModal').classList.add('flex');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editModal').classList.remove('flex');
+            currentEditingId = null;
+        }
+
+        function saveEdit() {
+            const activity = schedule.find(a => a.id == currentEditingId);
+            if (!activity) return;
+
+            const name = document.getElementById('editActivityName').value;
+            const start = document.getElementById('editStartTime').value;
+            const end = document.getElementById('editEndTime').value;
+            const type = document.getElementById('editActivityType').value;
+
+            if (!name || !start || !end) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            activity.name = name;
+            activity.start = start;
+            activity.end = end;
+            activity.type = type;
+
+            renderSchedule();
+            closeEditModal();
+        }
+
+        function deleteActivity() {
+            if (currentEditingId) {
+                schedule = schedule.filter(a => a.id != currentEditingId);
+                renderSchedule();
+                closeEditModal();
+            }
+        }
+
+        function addActivity() {
+            const newId = Math.max(...schedule.map(a => a.id)) + 1;
+            const newActivity = {
+                id: newId,
+                name: 'New Activity',
+                start: '12:00',
+                end: '13:00',
+                type: 'self-study'
+            };
+            
+            schedule.push(newActivity);
+            renderSchedule();
+            openEditModal(newId);
+        }
+
+        function saveSchedule() {
+            localStorage.setItem('dailySchedule', JSON.stringify(schedule));
+            alert('Schedule saved successfully!');
+        }
+
+        function resetSchedule() {
+            if (confirm('Are you sure you want to reset to the default schedule?')) {
+                schedule = [
+                    { id: 2, name: 'Self Study', start: '04:00', end: '06:00', type: 'self-study' },
+                    { id: 3, name: 'Exercise', start: '06:00', end: '06:30', type: 'exercise' },
+                    { id: 4, name: 'Fresh Up', start: '06:30', end: '07:00', type: 'fresh' },
+                    { id: 5, name: 'Self Study', start: '07:00', end: '08:00', type: 'self-study' },
+                    { id: 6, name: 'Breakfast', start: '08:00', end: '08:15', type: 'breakfast' },
+                    { id: 7, name: 'Self Study', start: '08:15', end: '09:00', type: 'self-study' },
+                    { id: 8, name: 'College', start: '09:00', end: '13:15', type: 'college' },
+                    { id: 9, name: 'Lunch', start: '13:15', end: '13:40', type: 'lunch' },
+                    { id: 10, name: 'Self Study', start: '13:40', end: '19:40', type: 'self-study' },
+                    { id: 11, name: 'Dinner', start: '19:40', end: '20:00', type: 'dinner' },
+                    { id: 12, name: 'Walking', start: '20:00', end: '20:20', type: 'walking' },
+                    { id: 13, name: 'Self Study', start: '20:20', end: '21:00', type: 'self-study' },
+                    { id: 1, name: 'Sleep', start: '21:00', end: '04:00', type: 'sleep' }
+                ];
+                isSundayMode = false;
+                const button = document.getElementById('sundayMode');
+                button.textContent = 'Sunday Mode (College → Self Study)';
+                button.classList.remove('bg-orange-600', 'hover:bg-orange-700');
+                button.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                renderSchedule();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('sundayMode').addEventListener('click', toggleSundayMode);
+        document.getElementById('addActivity').addEventListener('click', addActivity);
+        document.getElementById('saveSchedule').addEventListener('click', saveSchedule);
+        document.getElementById('resetSchedule').addEventListener('click', resetSchedule);
+        document.getElementById('saveEdit').addEventListener('click', saveEdit);
+        document.getElementById('deleteActivity').addEventListener('click', deleteActivity);
+        document.getElementById('cancelEdit').addEventListener('click', closeEditModal);
+
+        // Load saved schedule on startup
+        const savedSchedule = localStorage.getItem('dailySchedule');
+        if (savedSchedule) {
+            schedule = JSON.parse(savedSchedule);
+        }
+
+        // Initial render
+        renderSchedule();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5bcbf423bc464',t:'MTc1NzA3NTQyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
