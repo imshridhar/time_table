@@ -84,45 +84,39 @@
         <!-- Time Summary -->
         <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
             <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Daily Time Summary</h3>
-            <div id="timeSummary" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Time summary will be populated here -->
+            <div id="totalHours" class="text-center mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                <p class="text-gray-600 text-sm mb-1">Total Scheduled Time</p>
+                <p class="text-3xl font-bold text-gray-800">24 hours</p>
+            </div>
+            
+            <!-- Pie Chart and Legend -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Pie Chart -->
+                <div class="flex flex-col items-center justify-center">
+                    <div class="relative" style="width: 350px; height: 350px;">
+                        <svg id="pieChart" width="350" height="350" viewBox="0 0 350 350" style="background: transparent;">
+                            <!-- Pie slices will be drawn here -->
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="text-center bg-white bg-opacity-95 rounded-full w-36 h-36 flex flex-col items-center justify-center shadow-lg border-2 border-gray-200">
+                                <p class="text-3xl font-bold text-gray-800">24h</p>
+                                <p class="text-xs text-gray-600">Total</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="hoverInfo" class="mt-4 text-center min-h-[70px] flex items-center justify-center px-4">
+                        <p class="text-gray-500 text-sm">Hover over chart to see details</p>
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div id="pieLegend" class="space-y-2">
+                    <!-- Legend items will be populated here -->
+                </div>
             </div>
         </div>
 
-        <!-- Activity Legend -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Activity Types</h3>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-self-study"></div>
-                    <span class="text-sm text-gray-700">Self Study</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-exercise"></div>
-                    <span class="text-sm text-gray-700">Exercise</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-fresh"></div>
-                    <span class="text-sm text-gray-700">Fresh Up</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-breakfast"></div>
-                    <span class="text-sm text-gray-700">Meals</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-college"></div>
-                    <span class="text-sm text-gray-700">College</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-walking"></div>
-                    <span class="text-sm text-gray-700">Walking</span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="w-4 h-4 rounded activity-sleep"></div>
-                    <span class="text-sm text-gray-700">Sleep</span>
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <!-- Edit Modal -->
@@ -258,28 +252,129 @@
 
         function renderTimeSummary() {
             const summary = calculateTimeSummary();
-            const container = document.getElementById('timeSummary');
-            container.innerHTML = '';
+            
+            // Calculate total time
+            const totalMinutes = Object.values(summary).reduce((sum, data) => sum + data.totalMinutes, 0);
+            const totalHours = (totalMinutes / 60).toFixed(1);
+            
+            // Update total hours display
+            document.getElementById('totalHours').innerHTML = `
+                <p class="text-gray-600 text-sm mb-1">Total Scheduled Time</p>
+                <p class="text-3xl font-bold text-gray-800">${totalHours} hours</p>
+                <p class="text-sm text-gray-500 mt-1">${totalMinutes} minutes</p>
+            `;
             
             // Sort by total time (descending)
             const sortedSummary = Object.entries(summary).sort((a, b) => 
                 b[1].totalMinutes - a[1].totalMinutes
             );
             
+            // Render pie chart
+            renderPieChart(sortedSummary, totalMinutes);
+        }
+
+        function getActivityColor(type) {
+            const colors = {
+                'self-study': '#3b82f6',
+                'exercise': '#10b981',
+                'fresh': '#06b6d4',
+                'breakfast': '#f59e0b',
+                'college': '#8b5cf6',
+                'lunch': '#ef4444',
+                'dinner': '#f97316',
+                'walking': '#84cc16',
+                'sleep': '#6366f1'
+            };
+            return colors[type] || '#6b7280';
+        }
+
+        function renderPieChart(sortedSummary, totalMinutes) {
+            const svg = document.getElementById('pieChart');
+            const hoverInfo = document.getElementById('hoverInfo');
+            svg.innerHTML = '';
+            
+            const centerX = 175;
+            const centerY = 175;
+            const radius = 140;
+            
+            let currentAngle = -90; // Start from top
+            
             sortedSummary.forEach(([type, data]) => {
-                const percentage = ((data.totalMinutes / (24 * 60)) * 100).toFixed(1);
+                const percentage = (data.totalMinutes / totalMinutes) * 100;
+                const sliceAngle = (data.totalMinutes / totalMinutes) * 360;
+                
+                // Create pie slice
+                const startAngle = currentAngle * Math.PI / 180;
+                const endAngle = (currentAngle + sliceAngle) * Math.PI / 180;
+                
+                const x1 = centerX + radius * Math.cos(startAngle);
+                const y1 = centerY + radius * Math.sin(startAngle);
+                const x2 = centerX + radius * Math.cos(endAngle);
+                const y2 = centerY + radius * Math.sin(endAngle);
+                
+                const largeArcFlag = sliceAngle > 180 ? 1 : 0;
+                
+                const pathData = [
+                    `M ${centerX} ${centerY}`,
+                    `L ${x1} ${y1}`,
+                    `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                    'Z'
+                ].join(' ');
+                
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('fill', getActivityColor(type));
+                path.setAttribute('stroke', '#ffffff');
+                path.setAttribute('stroke-width', '3');
+                path.setAttribute('opacity', '1');
+                path.style.cursor = 'pointer';
+                path.style.transition = 'all 0.3s ease';
+                
+                // Add hover effects
+                path.addEventListener('mouseenter', function() {
+                    this.setAttribute('opacity', '0.85');
+                    this.setAttribute('stroke-width', '4');
+                    hoverInfo.innerHTML = `
+                        <div class="transition-all duration-300">
+                            <p class="text-xl font-bold text-gray-800">${data.name}</p>
+                            <p class="text-3xl font-bold mt-1" style="color: ${getActivityColor(type)}">${formatDuration(data.totalMinutes)}</p>
+                            <p class="text-sm text-gray-600 mt-1">${percentage.toFixed(1)}% of your day • ${data.count} activities</p>
+                        </div>
+                    `;
+                });
+                
+                path.addEventListener('mouseleave', function() {
+                    this.setAttribute('opacity', '1');
+                    this.setAttribute('stroke-width', '3');
+                    hoverInfo.innerHTML = '<p class="text-gray-500 text-sm">Hover over chart to see details</p>';
+                });
+                
+                svg.appendChild(path);
+                
+                currentAngle += sliceAngle;
+            });
+            
+            // Render legend
+            const legend = document.getElementById('pieLegend');
+            legend.innerHTML = '<h4 class="font-semibold text-gray-800 mb-3 text-lg">Activity Breakdown</h4>';
+            
+            sortedSummary.forEach(([type, data]) => {
+                const percentage = ((data.totalMinutes / totalMinutes) * 100).toFixed(1);
+                const hours = (data.totalMinutes / 60).toFixed(1);
                 
                 const div = document.createElement('div');
-                div.className = `activity-${type} text-white p-4 rounded-lg shadow-md`;
+                div.className = 'flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-gray-200';
                 div.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <h4 class="font-semibold text-lg">${data.name}</h4>
-                        <span class="text-sm opacity-90">${data.count}x</span>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-6 h-6 rounded-lg shadow-sm" style="background: ${getActivityColor(type)}"></div>
+                        <span class="text-sm font-medium text-gray-700">${data.name}</span>
                     </div>
-                    <div class="text-2xl font-bold mb-1">${formatDuration(data.totalMinutes)}</div>
-                    <div class="text-sm opacity-90">${percentage}% of day</div>
+                    <div class="text-right">
+                        <div class="text-sm font-bold text-gray-800">${hours}h</div>
+                        <div class="text-xs text-gray-500">${percentage}%</div>
+                    </div>
                 `;
-                container.appendChild(div);
+                legend.appendChild(div);
             });
         }
 
@@ -480,14 +575,21 @@
         }
 
         function saveSchedule() {
-            localStorage.setItem('dailySchedule', JSON.stringify(schedule));
-            alert('Schedule saved successfully!');
+            const scheduleData = JSON.stringify(schedule);
+            const blob = new Blob([scheduleData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'daily-schedule.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('Schedule downloaded successfully!');
         }
 
         function resetSchedule() {
             if (confirm('Are you sure you want to reset to the default schedule?')) {
                 schedule = [
-                    { id: 2, name: 'Self Study', start: '04:00', end: '06:00', type: 'self-study' },
+                    { id: 2, name: 'Self Study', start: '05:00', end: '06:00', type: 'self-study' },
                     { id: 3, name: 'Exercise', start: '06:00', end: '06:30', type: 'exercise' },
                     { id: 4, name: 'Fresh Up', start: '06:30', end: '07:00', type: 'fresh' },
                     { id: 5, name: 'Self Study', start: '07:00', end: '08:00', type: 'self-study' },
@@ -499,7 +601,7 @@
                     { id: 11, name: 'Dinner', start: '19:40', end: '20:00', type: 'dinner' },
                     { id: 12, name: 'Walking', start: '20:00', end: '20:20', type: 'walking' },
                     { id: 13, name: 'Self Study', start: '20:20', end: '21:00', type: 'self-study' },
-                    { id: 1, name: 'Sleep', start: '21:00', end: '04:00', type: 'sleep' }
+                    { id: 1, name: 'Sleep', start: '21:00', end: '05:00', type: 'sleep' }
                 ];
                 isSundayMode = false;
                 const button = document.getElementById('sundayMode');
@@ -519,14 +621,8 @@
         document.getElementById('deleteActivity').addEventListener('click', deleteActivity);
         document.getElementById('cancelEdit').addEventListener('click', closeEditModal);
 
-        // Load saved schedule on startup
-        const savedSchedule = localStorage.getItem('dailySchedule');
-        if (savedSchedule) {
-            schedule = JSON.parse(savedSchedule);
-        }
-
         // Initial render
         renderSchedule();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a5c52b6462c464',t:'MTc1NzA3NTc2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
